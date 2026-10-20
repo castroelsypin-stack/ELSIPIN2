@@ -176,6 +176,10 @@ textarea.in{min-height:84px;resize:vertical}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);grid-column:1/-1}
 
 footer.ft{border-top:1px solid var(--line);padding:46px 0 56px;margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px));color:var(--muted);font-size:14px}
+footer.ft .credit{margin-top:28px;padding-top:18px;border-top:1px solid var(--line);text-align:center;font-size:12px;letter-spacing:.12em}
+footer.ft .credit a,footer.ft .credit .cred-in{display:inline-flex;align-items:center;gap:8px;color:var(--muted);text-decoration:none;min-height:32px}
+footer.ft .credit a:hover{color:var(--gold-hi)}footer.ft .credit b{font-weight:500;letter-spacing:.16em;color:var(--ink)}
+footer.ft .cred-lg{height:22px;width:auto;max-width:90px;object-fit:contain;border-radius:4px}
 footer.ft .mx{display:flex;gap:20px;justify-content:space-between;flex-wrap:wrap;align-items:center}
 
 /* overlays */
@@ -1042,8 +1046,14 @@ function hdrHtml(){
 }
 function footerHtml(){
   return `<footer class="ft" id="contacto"><div class="mx"><div><b class="gold-text" style="font-family:var(--f-display);letter-spacing:.25em;font-size:20px;font-weight:500">${esc(nm())}</b><div>${esc(S.settings.address)}</div></div>
-    <div>WhatsApp: <a href="${waHref('')}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(S.settings.whatsapp)}</a><br>${esc(S.settings.email)}<br><button class="lk" data-a="track" style="margin-top:8px">Rastrear pedido</button></div></div></footer>`;
+    <div>WhatsApp: <a href="${waHref('')}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(S.settings.whatsapp)}</a><br>${esc(S.settings.email)}<br><button class="lk" data-a="track" style="margin-top:8px">Rastrear pedido</button></div></div>${creditHtml()}</footer>`;
 }
+const CRED_LOGO='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#111"/><path d="M13 13l22 22M35 13L13 35" stroke="#d8b25e" stroke-width="5" stroke-linecap="round"/></svg>');
+const credUrlOk=u=>/^https?:\/\/[^\s"'<>]+$/i.test(u||'');
+function creditHtml(){const s=S.settings;if(s.credOn===false)return '';const nm=(s.credName!=null?s.credName:'EXDROX.COM').trim(),pre=(s.credPre!=null?s.credPre:'Desarrollado por').trim();if(!nm&&!pre)return '';
+  const url=s.credUrl!=null?s.credUrl:'https://exdrox.com',lg=s.credLogo===''?'':(s.credLogo||CRED_LOGO);
+  const inner=`${lg?`<img src="${lg}" alt="" class="cred-lg">`:''}<span>${pre?esc(pre)+' ':''}<b>${esc(nm)}</b></span>`;
+  return `<div class="credit">${credUrlOk(url)?`<a href="${esc(url)}" target="_blank" rel="noopener">${inner}</a>`:`<span class="cred-in">${inner}</span>`}</div>`}
 function catTilesHtml(){
   const cs=S.categories.filter(c=>c.img);if(!cs.length)return '';
   return `<section class="cattiles" aria-label="Categorías"><div class="sechead"><h2>${esc(tx('catHead','Compra por categoría'))}</h2><div class="rule"></div></div><div class="ctg">${cs.map(c=>`<button class="ctile" data-a="catTile" data-id="${c.id}"><img src="${c.img}" alt="" loading="lazy"><span>${esc(c.name)}</span></button>`).join('')}</div></section>`;
@@ -1667,6 +1677,11 @@ function tAjustes(){
     <img class="logoprev" id="logoprev" src="${logoSrc()}" alt="Logo actual">
     <div class="acts" style="margin-bottom:16px"><label class="btn ghost sm" style="cursor:pointer">Subir nuevo logo<input type="file" accept="image/*" data-c="logofile" hidden></label><button type="button" class="btn ghost sm" data-a="logoreset">Usar el logo original</button></div>
     <div class="fg">${fld('Nombre de la joyería',`<input class="in" name="storeName" required value="${esc(s.storeName)}">`)}${fld('Frase de la marca',`<input class="in" name="tagline" value="${esc(s.tagline)}">`)}</div>
+    <h3 class="sub">Crédito del pie de página</h3>
+    <label class="rad" style="min-width:0"><input type="checkbox" name="credOn" ${s.credOn!==false?'checked':''} style="accent-color:var(--gold)"><div>Mostrar el crédito al final de la tienda</div></label>
+    <div class="fg" style="margin-top:10px">${fld('Texto antes del nombre',`<input class="in" name="credPre" maxlength="40" value="${esc(s.credPre!=null?s.credPre:'Desarrollado por')}">`)}${fld('Nombre',`<input class="in" name="credName" maxlength="40" value="${esc(s.credName!=null?s.credName:'EXDROX.COM')}">`)}${fld('Enlace (opcional)',`<input class="in" name="credUrl" inputmode="url" placeholder="https://" value="${esc(s.credUrl!=null?s.credUrl:'https://exdrox.com')}">`)}</div>
+    <div class="acts" style="align-items:center;margin-top:10px"><img class="logoprev" id="credprev" src="${s.credLogo===''?'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==':(s.credLogo||CRED_LOGO)}" alt="Logo del crédito" style="height:44px;margin:0"><label class="btn ghost sm" style="cursor:pointer">Subir logo pequeño<input type="file" accept="image/*" data-c="credfile" hidden></label><button type="button" class="btn ghost sm" data-a="credreset">Logo original</button><button type="button" class="btn ghost sm" data-a="credquit">Sin logo</button></div>
+    <p class="muted sm-t">Aparece abajo en la tienda, debajo de la dirección y el contacto. Se aplica al guardar.</p>
     <h3 class="sub">Animaciones decorativas</h3><div class="fg">${fld('Mariposas / colibríes',`<select class="in" name="fx"><option value="mariposas" ${FX()==='mariposas'?'selected':''}>Mariposas brillantes (por defecto)</option><option value="colibries" ${FX()==='colibries'?'selected':''}>Colibríes rosados</option><option value="off" ${FX()==='off'?'selected':''}>Apagadas (sin animaciones)</option></select>`)}</div>
     <div class="f full" style="margin-top:10px"><span>Colibrí real (opcional)</span>
       <div class="acts" style="align-items:center"><div id="fxprev" style="width:84px;height:84px;background:#000;border:1px solid var(--line2);display:grid;place-items:center">${s.fxImg?`<img src="${s.fxImg}" alt="Colibrí actual" style="max-width:100%;max-height:100%">`:'<span class="muted sm-t">Dibujo<br>incluido</span>'}</div>
@@ -2299,7 +2314,7 @@ const A={
   login(){UI.afterLogin=UI.modal&&UI.modal.t==='checkout'?'checkout':null;openModal('login')},
   logout(){if(API){Net.logout();return}S.session=null;S.custSession=null;UI.view='store';commit(true)},
   goPanel(){UI.view='panel';UI.tab=null;render()},
-  tab(el){UI.tab=el.dataset.id;UI.cq='';UI.logoDraft=undefined;UI.fxDraft=undefined;UI.cdraft=undefined;render()},
+  tab(el){UI.tab=el.dataset.id;UI.cq='';UI.logoDraft=undefined;UI.credDraft=undefined;UI.fxDraft=undefined;UI.cdraft=undefined;render()},
   copyref(el){const u=me();copyText(u?refLink(u,el.dataset.id):prodLink(el.dataset.id),'Enlace copiado')},
   copyplain(el){copyText(prodLink(el.dataset.id),'Enlace copiado')},
   copyval(el){const i=$('#'+el.dataset.src);copyText(i.value,'Enlace copiado')},
@@ -2363,6 +2378,8 @@ const A={
   reject(el){const o=S.orders.find(x=>x.id===el.dataset.id);ask(`¿Rechazar el crédito ${o.number}? El pedido se cancela y las unidades vuelven al stock.`,()=>{setStatus(o.id,'cancelado');if(o.customerId)notify(o.customerId,'Crédito no aprobado',`Tu compra ${o.number} a crédito no fue aprobada. Comunícate con la tienda.`,'account');save();toast('Crédito rechazado');renderPCsafe();if(UI.modal&&UI.modal.t==='credit'){UI.modal.keep=1;renderOverlay()}})},
   payInst(el){const o=S.orders.find(x=>x.id===el.dataset.id),i=o.plan[+el.dataset.i];ask(`¿Registrar el pago de ${i.initial?'la cuota inicial':'la cuota '+instLabel(o,i)} por ${money(i.amount)}?`,()=>{try{const was=o.status;payInstallment(o.id,+el.dataset.i);save();toast(o.status==='pagado'&&was!=='pagado'?'Crédito saldado por completo':'Pago registrado');renderPCsafe();UI.modal.keep=1;renderOverlay()}catch(e){toast(e.message)}})},
   fxreset(){UI.fxDraft=null;const i=$('#fxprev');if(i)i.innerHTML='<span class="muted sm-t">Dibujo<br>incluido</span>';toast('Se usará el dibujo incluido al guardar')},
+  credreset(){UI.credDraft=null;const i=$('#credprev');if(i)i.src=CRED_LOGO;toast('Se usará el logo original al guardar')},
+  credquit(){UI.credDraft='';const i=$('#credprev');if(i)i.src='data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';toast('Se quitará el logo al guardar')},
   logoreset(){UI.logoDraft=null;const i=$('#logoprev');if(i)i.src=LOGO;toast('Se usará el logo original al guardar')},
   reset(){ask('Se borrarán todos los datos y volverán los de ejemplo.',async()=>{await seed();UI.view='store';UI.modal=null;render();toast('Datos restablecidos')})}
 };
@@ -2468,6 +2485,7 @@ document.addEventListener('change',async e=>{
   if(c==='cfile'){const fl=t.files[0];t.value='';if(!fl)return;try{const d=await resizeLogo(fl,900);(UI.cdraft=UI.cdraft||{})[t.dataset.k]=d;const e=$('#'+t.dataset.k+'prev');e.innerHTML=`<img src="${d}" alt="" style="max-width:100%;max-height:100%">`;toast('Foto lista. Pulsa Guardar contenido')}catch(err){toast('No se pudo leer la imagen')}return}
   if(c==='rvfile'){const fl=t.files[0];t.value='';if(!fl)return;try{const d=await resizeLogo(fl,800);if(d.length>240000)return toast('La foto es muy pesada, prueba con otra');UI.rvImg=d;const e=$('#rvprev');if(e)e.innerHTML=`<img src="${d}" alt="Vista previa" style="max-width:100%;max-height:100%">`}catch(err){toast('No se pudo leer la imagen')}return}
   if(c==='catimg'){const fl=t.files[0];t.value='';if(!fl)return;try{cat(id).img=await resizeLogo(fl,700);commit();toast('Foto de categoría guardada')}catch(err){toast('No se pudo leer la imagen')}return}
+  if(c==='credfile'){const fl=t.files[0];t.value='';if(!fl)return;try{const d=await resizeLogo(fl,160);if(d.length>60000)return toast('El logo es muy pesado, prueba con otro');UI.credDraft=d;$('#credprev').src=d}catch(err){toast('No se pudo leer la imagen')}return}
   if(c==='logofile'){const fl=t.files[0];if(!fl)return;try{UI.logoDraft=await resizeLogo(fl);$('#logoprev').src=UI.logoDraft}catch(err){toast('No se pudo leer la imagen')}t.value='';return}
   if(c==='price'){const p=prod(id);p.price=Math.max(0,+t.value||0);save();toast('Precio actualizado');return}
   if(c==='stock'){const p=prod(id);p.stock=Math.max(0,Math.floor(+t.value||0));save();toast('Stock actualizado');return}
@@ -2634,7 +2652,7 @@ const F={
     if(id)Object.assign(S.customers.find(k=>k.id===id),data);else S.customers.push({id:'k'+uid(),createdAt:Date.now(),ownerId:isStaff(u)?data.ownerId:u.id,...data});
     UI.modal=null;commit();toast('Cliente guardado');
   },
-  settings(f){const d=new FormData(f),s=S.settings;s.fx=['mariposas','colibries','off'].includes(d.get('fx'))?d.get('fx'):'mariposas';s.fxFace=d.get('fxFace')==='left'?'left':'right';if(UI.fxDraft!==undefined){if(UI.fxDraft)s.fxImg=UI.fxDraft;else delete s.fxImg;UI.fxDraft=undefined}s.storeName=d.get('storeName').trim()||'GOLDEN TOUCH';s.tagline=d.get('tagline').trim();if(UI.logoDraft!==undefined){s.logo=UI.logoDraft;UI.logoDraft=undefined}s.whatsapp=d.get('whatsapp').trim();s.email=d.get('email').trim();s.address=d.get('address').trim();s.theme=THEMES[d.get('theme')]?d.get('theme'):'oro';s.contrast=['1','2'].includes(d.get('contrast'))?+d.get('contrast'):0;s.accent=d.get('useAccent')&&/^#[0-9a-f]{6}$/i.test(d.get('accent')||'')?d.get('accent'):'';for(const k of ['legalName','nit','taxRegime','invoiceNote'])s[k]=(d.get(k)||'').trim();s.currency=(d.get('currency').trim()||'COP').toUpperCase();s.storeUrl=d.get('storeUrl').trim();s.mailOn=!!d.get('mailOn');s.mailSubject=(d.get('mailSubject')||'').trim();s.mailNote=(d.get('mailNote')||'').trim();s.langs=LANGS.filter(([c])=>c!=='es'&&d.get('lang_'+c)).map(([c])=>c);s.defLang=s.langs.includes(d.get('defLang'))||d.get('defLang')==='es'?d.get('defLang'):'es';if(UI.lang&&UI.lang!=='es'&&!s.langs.includes(UI.lang))UI.lang='';s.curs=CURS.filter(([c])=>d.get('curon_'+c)&&+d.get('currate_'+c)>0).map(([c])=>({code:c,rate:+d.get('currate_'+c)}));if(UI.cur&&!s.curs.some(k=>k.code===UI.cur))UI.cur='';commit(true);toast('Ajustes guardados')},
+  settings(f){const d=new FormData(f),s=S.settings;s.fx=['mariposas','colibries','off'].includes(d.get('fx'))?d.get('fx'):'mariposas';s.fxFace=d.get('fxFace')==='left'?'left':'right';if(UI.fxDraft!==undefined){if(UI.fxDraft)s.fxImg=UI.fxDraft;else delete s.fxImg;UI.fxDraft=undefined}s.storeName=d.get('storeName').trim()||'GOLDEN TOUCH';s.tagline=d.get('tagline').trim();if(UI.logoDraft!==undefined){s.logo=UI.logoDraft;UI.logoDraft=undefined}s.credOn=!!d.get('credOn');s.credPre=(d.get('credPre')||'').trim().slice(0,40);s.credName=(d.get('credName')||'').trim().slice(0,40);{const u=(d.get('credUrl')||'').trim();s.credUrl=u&&!/^https?:\/\//i.test(u)?'https://'+u:u}if(UI.credDraft!==undefined){if(UI.credDraft===null)delete s.credLogo;else s.credLogo=UI.credDraft;UI.credDraft=undefined}s.whatsapp=d.get('whatsapp').trim();s.email=d.get('email').trim();s.address=d.get('address').trim();s.theme=THEMES[d.get('theme')]?d.get('theme'):'oro';s.contrast=['1','2'].includes(d.get('contrast'))?+d.get('contrast'):0;s.accent=d.get('useAccent')&&/^#[0-9a-f]{6}$/i.test(d.get('accent')||'')?d.get('accent'):'';for(const k of ['legalName','nit','taxRegime','invoiceNote'])s[k]=(d.get(k)||'').trim();s.currency=(d.get('currency').trim()||'COP').toUpperCase();s.storeUrl=d.get('storeUrl').trim();s.mailOn=!!d.get('mailOn');s.mailSubject=(d.get('mailSubject')||'').trim();s.mailNote=(d.get('mailNote')||'').trim();s.langs=LANGS.filter(([c])=>c!=='es'&&d.get('lang_'+c)).map(([c])=>c);s.defLang=s.langs.includes(d.get('defLang'))||d.get('defLang')==='es'?d.get('defLang'):'es';if(UI.lang&&UI.lang!=='es'&&!s.langs.includes(UI.lang))UI.lang='';s.curs=CURS.filter(([c])=>d.get('curon_'+c)&&+d.get('currate_'+c)>0).map(([c])=>({code:c,rate:+d.get('currate_'+c)}));if(UI.cur&&!s.curs.some(k=>k.code===UI.cur))UI.cur='';commit(true);toast('Ajustes guardados')},
   async mypass(f){const u=me();u.passHash=await hash(new FormData(f).get('pass'));delete u.defaultPass;commit(true);toast('Contraseña actualizada')},
   cajaopen(f){
     const u=me();if(myCaja())return toast('Ya tienes una caja abierta');
