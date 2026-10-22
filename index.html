@@ -1269,6 +1269,9 @@ let cocinaActive=false, ordersLoaded=false, audioCtx=null, soundOn=true;
 try{ soundOn = localStorage.getItem("ptoro_sound")!=="0"; }catch(e){}
 function ensureAudio(){ try{ if(!audioCtx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC) audioCtx=new AC(); } if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }catch(e){} }
 function beep(delay){ if(!audioCtx) return; try{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="sine"; o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination); const t=audioCtx.currentTime+delay; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.28); o.start(t); o.stop(t+0.32); }catch(e){} }
+// Alarma repetida durante ~`seconds` segundos. Respeta el silenciador salvo que force=true (p.ej. timbre manual).
+function playAlarm(seconds, force){ if(!soundOn && !force) return; ensureAudio(); const dur=seconds||4, n=Math.max(1,Math.round(dur/0.6)); for(let i=0;i<n;i++) beep(i*0.6); }
+function buzz(seconds){ try{ if(!navigator.vibrate) return; const dur=Math.round((seconds||4)*1000); const pat=[]; let t=0; while(t<dur){ pat.push(300,200); t+=500; } navigator.vibrate(pat); }catch(e){} }
 let seenRings={}, ringsInit=false;
 let seenReadyMesero={};
 async function setRing(id){ if(!DB) return; try{ await DB.doc("orders/"+id).update({ring:Date.now()}); toast("Timbre enviado al mesero"); }catch(e){ toast("No se pudo enviar el timbre"); } }
@@ -1281,8 +1284,7 @@ function ringAlert(o){
   el.querySelector(".ka-code").textContent="🔔 ¡Pedido #"+(o.code||"")+" listo!";
   el.querySelector(".ka-info").textContent=(o.type==="mesa"?("Mesa "+(o.table||"")):(o.customer||"Cliente"))+" · recógelo en cocina";
   el.classList.add("show");
-  ensureAudio(); beep(0); beep(0.5); beep(1.0); beep(1.5);
-  try{ if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]); }catch(e){}
+  playAlarm(4, true); buzz(4);
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),4000);
 }
 function kitchenAlert(o, extra){
@@ -1293,17 +1295,15 @@ function kitchenAlert(o, extra){
   if(extra>0) info+="  (+"+extra+" más)";
   el.querySelector(".ka-info").textContent=info;
   el.classList.add("show");
-  if(soundOn){ ensureAudio(); beep(0); beep(0.9); beep(1.8); }
-  try{ if(navigator.vibrate) navigator.vibrate([200,120,200]); }catch(e){}
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),3000);
+  playAlarm(4); buzz(4);
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),4000);
 }
 function genAlert(code, info){
   const el=$("#kitchenAlert"); if(!el) return;
   el.querySelector(".ka-code").textContent=code;
   el.querySelector(".ka-info").textContent=info||"";
   el.classList.add("show");
-  if(soundOn){ ensureAudio(); try{ beep(0); beep(.5); beep(1.0); }catch(e){} }
-  try{ if(navigator.vibrate) navigator.vibrate([250,120,250]); }catch(e){}
+  playAlarm(4); buzz(4);
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),4000);
 }
 /* Alertas de llegada por módulo/empleado (estaciones, domicilios, meseros) */
@@ -1440,7 +1440,7 @@ function startOrders(){
         try{ added = snap.docChanges().filter(c=>c.type==="added").map(c=>c.doc.data()).filter(o=>o&&o.status==="nuevo"); }catch(e){}
         const prevById={}; ORDERS.forEach(o=>prevById[o.id]=o);
         ORDERS = snap.docs.filter(d=>d.exists).map(d=>({id:d.id,...d.data()}));
-        if(ordersLoaded && cocinaActive && added.length){ kitchenAlert(added[added.length-1], added.length-1); }
+        if(ordersLoaded && added.length && (cocinaActive || moduleOpen("pedidos"))){ kitchenAlert(added[added.length-1], added.length-1); }
         if(ordersLoaded){ try{ moduleArrivalAlerts(prevById); }catch(e){} }
         ordersLoaded=true;
         checkWaiterRings();
@@ -1807,8 +1807,7 @@ function authAlert(r){
   el.querySelector(".aa-sub").textContent="Autorización para eliminar pedido";
   el.dataset.req=r.id; el.dataset.order=r.orderId||"";
   el.classList.add("show");
-  ensureAudio(); try{ beep(0); beep(.4); beep(.8); }catch(e){}
-  try{ if(navigator.vibrate) navigator.vibrate([250,120,250]); }catch(e){}
+  playAlarm(4, true); buzz(4);
   try{ if(window.Notification && Notification.permission==="granted") new Notification("Autorización para eliminar", {body:"Pedido #"+(r.code||"")+(r.by?(" · "+r.by):"")}); }catch(e){}
 }
 function editAuthAlert(r){
@@ -1819,8 +1818,7 @@ function editAuthAlert(r){
   el.querySelector(".aa-sub").textContent="Autorización para EDITAR pedido entregado";
   el.dataset.req=r.id; el.dataset.order=r.orderId||"";
   el.classList.add("show");
-  ensureAudio(); try{ beep(0); beep(.4); beep(.8); }catch(e){}
-  try{ if(navigator.vibrate) navigator.vibrate([250,120,250]); }catch(e){}
+  playAlarm(4, true); buzz(4);
   try{ if(window.Notification && Notification.permission==="granted") new Notification("Autorización para editar", {body:"Pedido #"+(r.code||"")+(r.by?(" · "+r.by):"")}); }catch(e){}
 }
 function nextAuthOrHide(doneId){ const el=$("#authAlert"); const pend=REQS.find(r=>r.id!==doneId); const pendE=(EDITREQS||[]).find(r=>r.id!==doneId && (r.status||"pending")==="pending"); if(pend){ authAlert(pend); } else if(pendE){ editAuthAlert(pendE); } else if(el){ el.classList.remove("show"); } }
