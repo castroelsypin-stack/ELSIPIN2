@@ -89,6 +89,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .mode small{font-weight:600;color:var(--soft);font-size:10.5px;text-align:center}
 /* Compactar en celulares para que no se vea tan grande */
 @media (max-width:560px){
+  body{zoom:.85}
   .hero-in{padding-block:16px 16px}
   .hero-logo{width:58px;height:58px;border-radius:14px;border-width:2px;margin-bottom:8px}
   .kicker{font-size:10.5px;letter-spacing:.2em}
@@ -922,6 +923,12 @@ function makeSupaDB(sb){
         set:async(obj)=>{ const {error}=await sb.from("kv").upsert({collection:c,id,data:obj}); if(error) throw error; },
         update:async(patch)=>{ const {error}=await sb.rpc("kv_merge",{p_collection:c,p_id:id,p_patch:patch}); if(error) throw error; },
         delete:async()=>{ const {error}=await sb.from("kv").delete().eq("collection",c).eq("id",id); if(error) throw error; },
+        onSnapshot:(cb,err)=>{ let active=true,t=null;
+          const run=async()=>{ try{ const {data}=await sb.from("kv").select("id,data").eq("collection",c).eq("id",id).maybeSingle(); if(active) cb(data?{exists:true,id:data.id,data:()=>data.data}:{exists:false,data:()=>null}); }catch(e){ if(active&&err) err(e); } };
+          run();
+          const ch=sb.channel("kvdoc_"+c+"_"+uuid()).on("postgres_changes",{event:"*",schema:"public",table:"kv",filter:"collection=eq."+c},()=>{ clearTimeout(t); t=setTimeout(run,120); }).subscribe();
+          return ()=>{ active=false; clearTimeout(t); try{ sb.removeChannel(ch); }catch(e){} };
+        },
         acquire:async()=>({acquired:true})
       };
     },
