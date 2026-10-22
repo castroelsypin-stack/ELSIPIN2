@@ -89,7 +89,6 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .mode small{font-weight:600;color:var(--soft);font-size:10.5px;text-align:center}
 /* Compactar en celulares para que no se vea tan grande */
 @media (max-width:560px){
-  body{zoom:.85}
   .hero-in{padding-block:16px 16px}
   .hero-logo{width:58px;height:58px;border-radius:14px;border-width:2px;margin-bottom:8px}
   .kicker{font-size:10.5px;letter-spacing:.2em}
@@ -813,6 +812,9 @@ const CONFIG = {
   // === Zonas de domicilio: cada zona tiene su precio y sus barrios ===
   zonas: [],    // [{nombre, precio, barrios:[...]}] — si el barrio no está en ninguna zona, se usa CONFIG.domicilio
   ticket: { width: "80", logoSize: 64 },   // ancho de impresión: "58" | "80" (térmicas) | "auto"; logoSize=px del logo en la factura (0 = sin logo)
+  // === Tamaño (zoom) del menú y ubicación/tamaño de las categorías — editable en Admin ===
+  // zoom en %, catPos: "top" (arriba) | "side" (lateral), catSize en % — por separado para celular y computador
+  layout: { zoomMobile: 85, zoomDesk: 100, catPosMobile: "top", catSizeMobile: 100, catPosDesk: "side", catSizeDesk: 100 },
   // === Cuentas para transferencia (hasta 3, con QR) — se configuran en Admin ===
   bancos: [
     { on:false, banco:"", titular:"", cuenta:"", qr:"" },
@@ -837,12 +839,18 @@ function normalizeConfig(){
   if(CONFIG.ticket.logoSize==null) CONFIG.ticket.logoSize=64;
   if(!Array.isArray(CONFIG.stations)||!CONFIG.stations.length) CONFIG.stations=[{id:"cocina",name:"Cocina",icon:"🔥"}];
   if(!CONFIG.stations.some(s=>s.id==="cocina")) CONFIG.stations.unshift({id:"cocina",name:"Cocina",icon:"🔥"});
+  if(!CONFIG.layout||typeof CONFIG.layout!=="object") CONFIG.layout={};
+  { const L=CONFIG.layout;
+    if(L.zoomMobile==null) L.zoomMobile=85; if(L.zoomDesk==null) L.zoomDesk=100;
+    if(L.catPosMobile!=="side"&&L.catPosMobile!=="top") L.catPosMobile="top";
+    if(L.catPosDesk!=="side"&&L.catPosDesk!=="top") L.catPosDesk="side";
+    if(L.catSizeMobile==null) L.catSizeMobile=100; if(L.catSizeDesk==null) L.catSizeDesk=100; }
 }
 try{ mergeSettings(JSON.parse(localStorage.getItem("ptoro_settings")||"null")); }catch(e){}
 normalizeConfig();
 const fmt = n => CONFIG.moneda + (Number(n)||0).toLocaleString("es-CO");
 let waDigits = CONFIG.whatsapp.replace(/\D/g,"");
-function settingsPayload(){ return {nombre:CONFIG.nombre,whatsapp:CONFIG.whatsapp,direccion:CONFIG.direccion,domicilio:CONFIG.domicilio,horario:CONFIG.horario,schedule:CONFIG.schedule,employees:CONFIG.employees,nuevoDias:CONFIG.nuevoDias,stations:CONFIG.stations,store:CONFIG.store,claves:CONFIG.claves,metaCloud:CONFIG.metaCloud,pantalla:CONFIG.pantalla,bancos:CONFIG.bancos,qrBase:CONFIG.qrBase,qrN:CONFIG.qrN,zonas:CONFIG.zonas,content:CONFIG.content,ticket:CONFIG.ticket}; }
+function settingsPayload(){ return {nombre:CONFIG.nombre,whatsapp:CONFIG.whatsapp,direccion:CONFIG.direccion,domicilio:CONFIG.domicilio,horario:CONFIG.horario,schedule:CONFIG.schedule,employees:CONFIG.employees,nuevoDias:CONFIG.nuevoDias,stations:CONFIG.stations,store:CONFIG.store,claves:CONFIG.claves,metaCloud:CONFIG.metaCloud,pantalla:CONFIG.pantalla,bancos:CONFIG.bancos,qrBase:CONFIG.qrBase,qrN:CONFIG.qrN,zonas:CONFIG.zonas,content:CONFIG.content,ticket:CONFIG.ticket,layout:CONFIG.layout}; }
 let _cfgSaveT=null;
 function saveSettings(){ try{ localStorage.setItem("ptoro_settings", JSON.stringify(settingsPayload())); }catch(e){} if(DB){ clearTimeout(_cfgSaveT); _cfgSaveT=setTimeout(()=>{ try{ DB.doc("config/settings").set(settingsPayload()); }catch(e){} },500); } }
 let _menuSaveT=null;
@@ -851,10 +859,36 @@ async function loadRemoteConfig(){
   if(!DB) return;
   try{ const s=await DB.doc("config/settings").get(); if(s&&s.exists){ const d=s.data(); if(d&&typeof d==="object"&&Object.keys(d).length) mergeSettings(d); } }catch(e){}
   try{ const m=await DB.doc("config/menu").get(); if(m&&m.exists){ const d=m.data(); if(d&&Array.isArray(d.menu)&&d.menu.length) MENU=d.menu; } }catch(e){}
-  try{ waDigits=CONFIG.whatsapp.replace(/\D/g,""); refreshStatus(); buildMenu(); fillFooter(); applyContent(); renderModules(); }catch(e){}
+  try{ waDigits=CONFIG.whatsapp.replace(/\D/g,""); refreshStatus(); buildMenu(); fillFooter(); applyContent(); applyLayout(); renderModules(); }catch(e){}
 }
 function isNew(it){ return it && it.createdAt && (Date.now()-it.createdAt) <= (Number(CONFIG.nuevoDias)||15)*86400000; }
-function applySettings(){ waDigits=CONFIG.whatsapp.replace(/\D/g,""); saveSettings(); refreshStatus(); buildMenu(); fillFooter(); applyContent(); }
+function applySettings(){ waDigits=CONFIG.whatsapp.replace(/\D/g,""); saveSettings(); refreshStatus(); buildMenu(); fillFooter(); applyContent(); applyLayout(); }
+function _clampN(v,lo,hi,d){ v=parseInt(String(v),10); if(isNaN(v)) v=d; return Math.max(lo,Math.min(hi,v)); }
+function applyLayout(){
+  const L=CONFIG.layout||{};
+  const zM=_clampN(L.zoomMobile,55,130,85)/100, zD=_clampN(L.zoomDesk,55,130,100)/100;
+  const posM=(L.catPosMobile==="side")?"side":"top";
+  const posD=(L.catPosDesk==="top")?"top":"side";
+  const sM=_clampN(L.catSizeMobile,60,170,100)/100, sD=_clampN(L.catSizeDesk,60,170,100)/100;
+  const side=(scale,isMob)=>{
+    const colW=Math.round((isMob?104:212)*scale), top=isMob?60:70;
+    return `.menu-layout{grid-template-columns:${colW}px 1fr;gap:${isMob?12:24}px}`
+      +`.cats{flex-direction:column;overflow-x:visible;overflow-y:auto;white-space:normal;max-height:calc(100vh - 110px);padding:2px;top:calc(env(safe-area-inset-top,0px) + ${top}px)}`
+      +`.cat{display:block;width:100%;text-align:left;border-radius:${Math.round(10*scale)}px;white-space:normal;font-size:${(13.5*scale).toFixed(1)}px;padding:${Math.round(11*scale)}px ${Math.round(13*scale)}px}`
+      +`.cat .cemo{font-size:${(17*scale).toFixed(1)}px}`;
+  };
+  const top=(scale,isMob)=>{
+    const t=isMob?60:70;
+    return `.menu-layout{grid-template-columns:1fr;gap:0}`
+      +`.cats{flex-direction:row;overflow-x:auto;overflow-y:hidden;white-space:nowrap;max-height:none;padding:${isMob?"12px 0 10px":"8px 0 10px"};top:calc(env(safe-area-inset-top,0px) + ${t}px)}`
+      +`.cat{flex:none;width:auto;text-align:left;border-radius:999px;white-space:nowrap;font-size:${(13*scale).toFixed(1)}px;padding:${Math.round(8*scale)}px ${Math.round(15*scale)}px}`
+      +`.cat .cemo{font-size:${(16*scale).toFixed(1)}px}`;
+  };
+  const css=`@media(min-width:641px){body{zoom:${zD}}${posD==="side"?side(sD,false):top(sD,false)}}`
+           +`@media(max-width:640px){body{zoom:${zM}}${posM==="side"?side(sM,true):top(sM,true)}}`;
+  let st=$("#layoutStyle"); if(!st){ st=document.createElement("style"); st.id="layoutStyle"; document.head.appendChild(st); }
+  st.textContent=css;
+}
 function hm(str){ const s=String(str==null?"":str).trim(); const m=/^(\d{1,2}):(\d{2})$/.exec(s); if(m) return (+m[1])*60+(+m[2]); const n=parseInt(s,10); return isNaN(n)?null:n*60; }
 function isOpenNow(){
   const s=CONFIG.schedule, now=new Date(), cur=now.getHours()*60+now.getMinutes();
@@ -2371,6 +2405,18 @@ function renderAdmin(){
     <p class="note">Ajusta el ancho para tu impresora. Las térmicas usan rollo de 58mm o 80mm.</p>
     <div class="adm-grid"><div class="field"><label>Ancho del tiquete</label><select id="aTicket"><option value="80"${(((C.ticket||{}).width||"80")==="80")?" selected":""}>Térmica 80mm</option><option value="58"${(((C.ticket||{}).width)==="58")?" selected":""}>Térmica 58mm</option><option value="auto"${(((C.ticket||{}).width)==="auto")?" selected":""}>Normal (hoja carta)</option></select></div><div class="field"><label>Tamaño del logo en la factura (px · 0 = sin logo)</label><input id="aTkLogo" inputmode="numeric" value="${Number((C.ticket||{}).logoSize)||0}" placeholder="Ej: 64"></div></div>
     <p class="note">El logo del negocio se imprime arriba en cada factura. Usa el mismo logo que configuras en “Logo del negocio”.</p>
+    <h3 style="font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;font-size:15px;margin-top:4px">📐 Tamaño del menú y categorías</h3>
+    <p class="note">Ajusta el “zoom” del menú y dónde van las categorías (al lado o arriba), por separado para celular y computador. Se aplica al instante al guardar o previsualizar.</p>
+    <div class="adm-grid">
+      <div class="field"><label>Zoom del menú · celular (%)</label><input id="aZoomM" inputmode="numeric" value="${_clampN((C.layout||{}).zoomMobile,55,130,85)}" placeholder="85"></div>
+      <div class="field"><label>Zoom del menú · computador (%)</label><input id="aZoomD" inputmode="numeric" value="${_clampN((C.layout||{}).zoomDesk,55,130,100)}" placeholder="100"></div>
+      <div class="field"><label>Categorías en celular</label><select id="aCatPosM"><option value="top"${((C.layout||{}).catPosMobile!=="side")?" selected":""}>Arriba (barra)</option><option value="side"${((C.layout||{}).catPosMobile==="side")?" selected":""}>Al lado (lateral)</option></select></div>
+      <div class="field"><label>Tamaño categorías · celular (%)</label><input id="aCatSzM" inputmode="numeric" value="${_clampN((C.layout||{}).catSizeMobile,60,170,100)}" placeholder="100"></div>
+      <div class="field"><label>Categorías en computador</label><select id="aCatPosD"><option value="side"${((C.layout||{}).catPosDesk!=="top")?" selected":""}>Al lado (lateral)</option><option value="top"${((C.layout||{}).catPosDesk==="top")?" selected":""}>Arriba (barra)</option></select></div>
+      <div class="field"><label>Tamaño categorías · computador (%)</label><input id="aCatSzD" inputmode="numeric" value="${_clampN((C.layout||{}).catSizeDesk,60,170,100)}" placeholder="100"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px"><button type="button" class="ed-optbtn" id="aLayPrev">👁️ Previsualizar</button><button type="button" class="ed-optbtn" id="aLayReset">↺ Valores recomendados</button></div>
+    <p class="note">Sugerencia: en celular 80–90% se ve cómodo; en computador 100%. Las categorías “al lado” lucen bien con tamaño 90–110%.</p>
     <h3 style="font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;font-size:15px;margin-top:4px">📱 Códigos QR de mesas</h3>
     <p class="note">Genera un QR por mesa. Al escanearlo, el cliente abre el menú con su mesa ya seleccionada y pide desde el celular. Imprímelos y pégalos en cada mesa.</p>
     <div class="field"><label>Dirección (URL) de tu sitio publicado</label><input id="aQrBase" value="${esc(C.qrBase||"")}" placeholder="https://www.restoplazatoro.site"></div>
@@ -2390,11 +2436,14 @@ function renderAdmin(){
     C.pantalla=Object.assign({},C.pantalla,{full:$("#aPfull").checked,cliente:$("#aPcli").checked,total:$("#aPtot").checked,prep:$("#aPprep").checked,listos:$("#aPlis").checked,imgSecs:Math.max(2,parseInt(String($("#aPsecs").value).replace(/\D/g,""),10)||8),imgFit:$("#aPfit").value,imgRes:parseInt($("#aPres").value,10)||1080});
     C.content=Object.assign({},C.content,{brandName:$("#cBrand").value.trim(),brandTag:$("#cBrandTag").value.trim(),heroKicker:$("#cHeroKicker").value.trim(),heroTitle:$("#cHeroTitle").value.trim(),heroText:$("#cHeroText").value.trim(),heroChips:$("#cHeroChips").value.trim(),footTag:$("#cFootTag").value.trim(),footHow:$("#cFootHow").value.trim()});
     C.ticket={width:$("#aTicket").value,logoSize:Math.max(0,parseInt(String($("#aTkLogo").value).replace(/\D/g,""),10)||0)}; applyTicketStyle();
+    C.layout={ zoomMobile:_clampN($("#aZoomM").value,55,130,85), zoomDesk:_clampN($("#aZoomD").value,55,130,100), catPosMobile:($("#aCatPosM").value==="side"?"side":"top"), catSizeMobile:_clampN($("#aCatSzM").value,60,170,100), catPosDesk:($("#aCatPosD").value==="top"?"top":"side"), catSizeDesk:_clampN($("#aCatSzD").value,60,170,100) }; applyLayout();
     applySettings(); if(moduleOpen("pantalla")) renderPantalla(); $("#admMsg").textContent="✓ Guardado"; toast("Información guardada");
   };
   const geo=$("#aStGeo"); if(geo) geo.onclick=()=>{ if(!navigator.geolocation){ toast("Geolocalización no disponible aquí"); return; } navigator.geolocation.getCurrentPosition(p=>{ $("#aStLat").value=p.coords.latitude.toFixed(6); $("#aStLng").value=p.coords.longitude.toFixed(6); toast("Ubicación capturada"); },()=>toast("No se pudo obtener la ubicación"),{timeout:8000}); };
   renderEmps(); renderStationsAdmin(); renderBancosAdmin(); renderZonasAdmin(); renderThemePicker(); renderLogoAdmin(); renderPantImgsAdmin();
   const qg=$("#aQrGen"); if(qg) qg.onclick=genTableQRs;
+  const lp=$("#aLayPrev"); if(lp) lp.onclick=()=>{ const prev=CONFIG.layout; CONFIG.layout={ zoomMobile:_clampN($("#aZoomM").value,55,130,85), zoomDesk:_clampN($("#aZoomD").value,55,130,100), catPosMobile:($("#aCatPosM").value==="side"?"side":"top"), catSizeMobile:_clampN($("#aCatSzM").value,60,170,100), catPosDesk:($("#aCatPosD").value==="top"?"top":"side"), catSizeDesk:_clampN($("#aCatSzD").value,60,170,100) }; applyLayout(); CONFIG.layout=prev; toast("Vista previa aplicada · recuerda Guardar"); };
+  const lr=$("#aLayReset"); if(lr) lr.onclick=()=>{ $("#aZoomM").value=85; $("#aZoomD").value=100; $("#aCatPosM").value="top"; $("#aCatSzM").value=100; $("#aCatPosD").value="side"; $("#aCatSzD").value=100; const prev=CONFIG.layout; CONFIG.layout={zoomMobile:85,zoomDesk:100,catPosMobile:"top",catSizeMobile:100,catPosDesk:"side",catSizeDesk:100}; applyLayout(); CONFIG.layout=prev; toast("Valores recomendados (toca Guardar para fijar)"); };
 }
 function renderPantImgsAdmin(){
   const box=$("#admPantImgs"); if(!box) return;
@@ -2608,7 +2657,7 @@ $("#scrimOrd").addEventListener("click",closeOrd);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeSheet(); closeEditor(); closeStaff(); closeCust(); closeOpt(); closeTrack(); closeOrd(); } });
 
 { const t=THEMES.find(x=>x.id===activeThemeId()); if($("#themeBtn")) $("#themeBtn").textContent=t?t.ic:"🎨"; }
-buildMenu(); buildStationModules(); refreshStatus(); refreshCartUI(); fillFooter(); applyContent();
+buildMenu(); buildStationModules(); refreshStatus(); refreshCartUI(); fillFooter(); applyContent(); applyLayout();
 setInterval(refreshStatus,60000);
 setInterval(()=>{ if(anyModuleOpen()) renderModules(); },30000); // refresh "hace X min"
 
