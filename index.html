@@ -87,6 +87,22 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .mode{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;font-weight:800;font-size:13px;transition:.15s}
 .mode .mi{font-size:20px;line-height:1}
 .mode small{font-weight:600;color:var(--soft);font-size:10.5px;text-align:center}
+/* Compactar en celulares para que no se vea tan grande */
+@media (max-width:560px){
+  .hero-in{padding-block:16px 16px}
+  .hero-logo{width:58px;height:58px;border-radius:14px;border-width:2px;margin-bottom:8px}
+  .kicker{font-size:10.5px;letter-spacing:.2em}
+  .hero h1{font-size:clamp(21px,6.4vw,27px);margin-top:4px;letter-spacing:0}
+  .hero p{font-size:13px;margin-top:8px;max-width:none}
+  .hero-meta{gap:6px;margin-top:12px}
+  .chip{font-size:11px;padding:6px 9px;gap:5px}
+  .modes{margin:12px auto 4px;gap:7px}
+  .mode{padding:9px 6px;font-size:12px}
+  .mode .mi{font-size:18px}
+  .mode small{font-size:9.5px}
+  .logo{width:42px;height:42px;border-radius:10px}
+  .brand b{font-size:15px;letter-spacing:.1em}
+}
 .mode[aria-pressed="true"]{border-color:var(--ember);background:color-mix(in srgb,var(--ember) 12%,var(--surface));box-shadow:0 0 0 3px color-mix(in srgb,var(--ember) 18%,transparent)}
 .mode:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
 
