@@ -871,11 +871,13 @@ function applyLayout(){
   const posD=(L.catPosDesk==="top")?"top":"side";
   const sM=_clampN(L.catSizeMobile,60,170,100)/100, sD=_clampN(L.catSizeDesk,60,170,100)/100;
   const side=(scale,isMob)=>{
-    const colW=Math.round((isMob?104:212)*scale), top=isMob?60:70;
-    return `.menu-layout{grid-template-columns:${colW}px 1fr!important;gap:${isMob?12:24}px!important}`
-      +`.cats{flex-direction:column!important;overflow-x:visible!important;overflow-y:auto;white-space:normal;max-height:calc(100vh - 110px);padding:2px;top:calc(env(safe-area-inset-top,0px) + ${top}px)}`
-      +`.cat{display:block!important;width:100%!important;text-align:left;border-radius:${Math.round(10*scale)}px!important;white-space:normal!important;font-size:${(13.5*scale).toFixed(1)}px!important;padding:${Math.round(11*scale)}px ${Math.round(13*scale)}px!important}`
-      +`.cat .cemo{font-size:${(17*scale).toFixed(1)}px!important}`;
+    const colW=Math.round((isMob?92:168)*scale), top=isMob?60:70;
+    // La letra se autoajusta al ancho de la columna (cqi) con tope según el tamaño elegido,
+    // y las palabras largas parten solas: así la columna es angosta y las fotos lucen mejor.
+    return `.menu-layout{grid-template-columns:${colW}px 1fr!important;gap:${isMob?12:20}px!important}`
+      +`.cats{flex-direction:column!important;overflow-x:visible!important;overflow-y:auto;white-space:normal;max-height:calc(100vh - 110px);padding:2px;top:calc(env(safe-area-inset-top,0px) + ${top}px);container-type:inline-size}`
+      +`.cat{display:block!important;width:100%!important;text-align:left;border-radius:${Math.round(10*scale)}px!important;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;hyphens:auto;line-height:1.15!important;font-size:clamp(9px,13cqi,${(15.5*scale).toFixed(1)}px)!important;padding:${Math.round(9*scale)}px ${Math.round(10*scale)}px!important}`
+      +`.cat .cemo{font-size:clamp(12px,16cqi,${(18*scale).toFixed(1)}px)!important;margin-right:5px;vertical-align:-1px}`;
   };
   const top=(scale,isMob)=>{
     const t=isMob?60:70;
