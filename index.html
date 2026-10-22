@@ -1001,7 +1001,17 @@ function selectCat(ci){
   selCat=ci; searchQ=""; const si=$("#menuSearch"); if(si) si.value="";
   document.querySelectorAll(".cat").forEach((b,i)=>b.classList.toggle("active",i===ci));
   renderCategory();
-  window.scrollTo({top:0,behavior:"smooth"});
+  scrollToProducts();
+}
+function scrollToProducts(){
+  const menu=$("#menu"); if(!menu) return;
+  const bar=document.querySelector(".bar");
+  const cats=document.querySelector(".cats");
+  // En celular la barra de categorías va horizontal y pegada arriba: hay que dejarle su espacio
+  const horiz=cats&&getComputedStyle(cats).flexDirection==="row";
+  const off=(bar?bar.getBoundingClientRect().height:0)+(horiz&&cats?cats.getBoundingClientRect().height:0)+6;
+  const y=menu.getBoundingClientRect().top+window.pageYOffset-off;
+  window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
 }
 function makeCard(ci,ii,it,catName){
   const card=document.createElement("article"); card.className="item"; card.dataset.key=ci+"-"+ii;
