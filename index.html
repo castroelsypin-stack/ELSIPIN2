@@ -403,7 +403,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pb-fast{background:var(--leaf-soft);color:var(--leaf)}
 .pb-mid{background:color-mix(in srgb,var(--flame) 26%,var(--surface));color:#9a6a00}
 .pb-late{background:color-mix(in srgb,var(--danger) 18%,var(--surface));color:var(--danger)}
-.item-img{width:100%;aspect-ratio:16/10;height:auto;object-fit:cover;object-position:center;border-radius:10px;background:var(--surface-2);display:block}
+.item-img{width:100%;aspect-ratio:16/10;height:auto;object-fit:contain;object-position:center;border-radius:10px;background:var(--surface-2);display:block}
 @supports not (aspect-ratio:1){.item-img{height:170px}}
 .cat .cemo{font-size:17px;margin-right:7px;vertical-align:-2px}
 .sec-emo{font-size:22px;margin-right:6px}
