@@ -137,9 +137,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 @media (max-width:560px){.items{grid-template-columns:1fr}}
 .item{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .item .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-.item h3{font-size:16px;font-family:"Mulish";font-weight:800}
-.item .price{font-family:"Oswald";font-weight:600;font-size:17px;color:var(--ember);white-space:nowrap}
-.item .desc{color:var(--soft);font-size:13px}
+.item h3{font-size:16px;font-family:"Mulish";font-weight:800;min-width:0;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+.item .price{font-family:"Oswald";font-weight:600;font-size:17px;color:var(--ember);white-space:nowrap;flex:none}
+.item .desc{color:var(--soft);font-size:13px;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
 .tagrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .tag{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--leaf);background:var(--leaf-soft);padding:3px 7px;border-radius:6px}
 .newbadge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--ember);padding:2px 7px;border-radius:999px;vertical-align:middle;white-space:nowrap}
