@@ -1,7 +1,7 @@
-/* Service worker de Resto Plaza Toro — v3
+/* Service worker de Resto Plaza Toro — v4
    La página (index.html) SIEMPRE se busca en la red (nunca se sirve cacheada),
    para que los cambios se vean al instante. Solo se cachean íconos/estáticos. */
-const CACHE = "ptoro-v3";
+const CACHE = "ptoro-v4";
 const ASSETS = ["./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {
