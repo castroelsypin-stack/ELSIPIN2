@@ -1270,6 +1270,7 @@ try{ soundOn = localStorage.getItem("ptoro_sound")!=="0"; }catch(e){}
 function ensureAudio(){ try{ if(!audioCtx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC) audioCtx=new AC(); } if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }catch(e){} }
 function beep(delay){ if(!audioCtx) return; try{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="sine"; o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination); const t=audioCtx.currentTime+delay; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.28); o.start(t); o.stop(t+0.32); }catch(e){} }
 let seenRings={}, ringsInit=false;
+let seenReadyMesero={};
 async function setRing(id){ if(!DB) return; try{ await DB.doc("orders/"+id).update({ring:Date.now()}); toast("Timbre enviado al mesero"); }catch(e){ toast("No se pudo enviar el timbre"); } }
 function checkWaiterRings(){
   ORDERS.forEach(o=>{ const r=o.ring||0, prev=seenRings[o.id]||0; if(r>prev){ const noOwner=!(o.assignedWaiter&&o.assignedWaiter.name)&&!o.waiter; if(ringsInit && currentWaiter && (o.waiter===currentWaiter || (o.assignedWaiter&&o.assignedWaiter.name===currentWaiter) || noOwner)) ringAlert(o); seenRings[o.id]=r; } });
@@ -1325,13 +1326,17 @@ function moduleArrivalAlerts(prev){
       const assignedNow = currentDriver && o.assignedTo && o.assignedTo.id===currentDriver.id && (!p||!p.assignedTo||p.assignedTo.id!==currentDriver.id);
       if(readyNow && mine && (!wasReady || assignedNow)) genAlert("🛵 Nuevo domicilio · #"+(o.code||""), esc(o.customer||"Cliente")+(o.hood?(" · "+esc(o.hood)):""));
     }
-    // Meseros: pedido listo asignado a mí
+    // Meseros: pedido que queda "listo" y me corresponde (lo tomé yo, está asignado a mí, o aún sin mesero).
+    // Avisa en cuanto queda listo, sin depender de que ya esté asignado (la asignación es posterior).
     if(moduleOpen("meseros") && currentWaiter){
-      const isMine = (o.assignedWaiter&&o.assignedWaiter.name===currentWaiter) || (o.waiter===currentWaiter);
-      const wasReady = p && p.status==="listo";
+      const myWid=widFor(currentWaiter);
+      const assignedToMe = o.assignedWaiter && (o.assignedWaiter.id===myWid || o.assignedWaiter.name===currentWaiter);
+      const takenByMe = o.source==="mesero" && o.waiter===currentWaiter;
+      const unassigned = !(o.assignedWaiter && o.assignedWaiter.id);
       const readyNow = (o.type==="mesa"||o.type==="recoger") && o.status==="listo";
-      const assignedNow = o.assignedWaiter && o.assignedWaiter.name===currentWaiter && (!p||!p.assignedWaiter||p.assignedWaiter.name!==currentWaiter) && o.status==="listo";
-      if(isMine && readyNow && (!wasReady || assignedNow)) genAlert("🧑‍🍳 Listo para entregar · #"+(o.code||""), (o.type==="mesa"?("Mesa "+(o.table||"")):esc(o.customer||"Cliente")));
+      if(readyNow && (assignedToMe || takenByMe || unassigned)){
+        if(!seenReadyMesero[o.id]){ seenReadyMesero[o.id]=1; genAlert("🧑‍🍳 Listo para entregar · #"+(o.code||""), (o.type==="mesa"?("Mesa "+(o.table||"")):esc(o.customer||"Cliente"))); }
+      } else if(!readyNow){ if(seenReadyMesero[o.id]) delete seenReadyMesero[o.id]; }
     }
   });
 }
