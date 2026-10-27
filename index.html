@@ -815,6 +815,9 @@ const CONFIG = {
   // === Tamaño (zoom) del menú y ubicación/tamaño de las categorías — editable en Admin ===
   // zoom en %, catPos: "top" (arriba) | "side" (lateral), catSize en % — por separado para celular y computador
   layout: { zoomMobile: 85, zoomDesk: 100, catPosMobile: "top", catSizeMobile: 100, catPosDesk: "side", catSizeDesk: 100 },
+  // === Alertas de sonido (editable en Admin): activar/desactivar global y por módulo, y duración en segundos ===
+  // "stations" cubre las estaciones nuevas que crees (hereda la configuración automáticamente)
+  alerts: { on: true, seconds: 4, cocina: true, pedidos: true, domicilios: true, meseros: true, stations: true },
   // === Cuentas para transferencia (hasta 3, con QR) — se configuran en Admin ===
   bancos: [
     { on:false, banco:"", titular:"", cuenta:"", qr:"" },
@@ -845,12 +848,16 @@ function normalizeConfig(){
     if(L.catPosMobile!=="side"&&L.catPosMobile!=="top") L.catPosMobile="top";
     if(L.catPosDesk!=="side"&&L.catPosDesk!=="top") L.catPosDesk="side";
     if(L.catSizeMobile==null) L.catSizeMobile=100; if(L.catSizeDesk==null) L.catSizeDesk=100; }
+  if(!CONFIG.alerts||typeof CONFIG.alerts!=="object") CONFIG.alerts={};
+  { const A=CONFIG.alerts; if(A.on==null) A.on=true;
+    A.seconds=Math.max(1,Math.min(15,parseInt(A.seconds,10)||4));
+    ["cocina","pedidos","domicilios","meseros","stations"].forEach(k=>{ if(A[k]==null) A[k]=true; }); }
 }
 try{ mergeSettings(JSON.parse(localStorage.getItem("ptoro_settings")||"null")); }catch(e){}
 normalizeConfig();
 const fmt = n => CONFIG.moneda + (Number(n)||0).toLocaleString("es-CO");
 let waDigits = CONFIG.whatsapp.replace(/\D/g,"");
-function settingsPayload(){ return {nombre:CONFIG.nombre,whatsapp:CONFIG.whatsapp,direccion:CONFIG.direccion,domicilio:CONFIG.domicilio,horario:CONFIG.horario,schedule:CONFIG.schedule,employees:CONFIG.employees,nuevoDias:CONFIG.nuevoDias,stations:CONFIG.stations,store:CONFIG.store,claves:CONFIG.claves,metaCloud:CONFIG.metaCloud,pantalla:CONFIG.pantalla,bancos:CONFIG.bancos,qrBase:CONFIG.qrBase,qrN:CONFIG.qrN,zonas:CONFIG.zonas,content:CONFIG.content,ticket:CONFIG.ticket,layout:CONFIG.layout}; }
+function settingsPayload(){ return {nombre:CONFIG.nombre,whatsapp:CONFIG.whatsapp,direccion:CONFIG.direccion,domicilio:CONFIG.domicilio,horario:CONFIG.horario,schedule:CONFIG.schedule,employees:CONFIG.employees,nuevoDias:CONFIG.nuevoDias,stations:CONFIG.stations,store:CONFIG.store,claves:CONFIG.claves,metaCloud:CONFIG.metaCloud,pantalla:CONFIG.pantalla,bancos:CONFIG.bancos,qrBase:CONFIG.qrBase,qrN:CONFIG.qrN,zonas:CONFIG.zonas,content:CONFIG.content,ticket:CONFIG.ticket,layout:CONFIG.layout,alerts:CONFIG.alerts}; }
 let _cfgSaveT=null;
 function saveSettings(){ try{ localStorage.setItem("ptoro_settings", JSON.stringify(settingsPayload())); }catch(e){} if(DB){ clearTimeout(_cfgSaveT); _cfgSaveT=setTimeout(()=>{ try{ DB.doc("config/settings").set(settingsPayload()); }catch(e){} },500); } }
 let _menuSaveT=null;
@@ -1269,9 +1276,17 @@ let cocinaActive=false, ordersLoaded=false, audioCtx=null, soundOn=true;
 try{ soundOn = localStorage.getItem("ptoro_sound")!=="0"; }catch(e){}
 function ensureAudio(){ try{ if(!audioCtx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC) audioCtx=new AC(); } if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }catch(e){} }
 function beep(delay){ if(!audioCtx) return; try{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="sine"; o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination); const t=audioCtx.currentTime+delay; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.28); o.start(t); o.stop(t+0.32); }catch(e){} }
-// Alarma repetida durante ~`seconds` segundos. Respeta el silenciador salvo que force=true (p.ej. timbre manual).
-function playAlarm(seconds, force){ if(!soundOn && !force) return; ensureAudio(); const dur=seconds||4, n=Math.max(1,Math.round(dur/0.6)); for(let i=0;i<n;i++) beep(i*0.6); }
-function buzz(seconds){ try{ if(!navigator.vibrate) return; const dur=Math.round((seconds||4)*1000); const pat=[]; let t=0; while(t<dur){ pat.push(300,200); t+=500; } navigator.vibrate(pat); }catch(e){} }
+// ¿Están activas las alertas (globalmente y para este rol) según la config de Admin?
+function alertEnabled(role){ const a=CONFIG.alerts||{}; return a.on!==false && (role? a[role]!==false : true); }
+function alarmSecs(){ return Math.max(1,Math.min(15,(CONFIG.alerts&&parseInt(CONFIG.alerts.seconds,10))||4)); }
+// Alarma repetida durante la duración configurada. Respeta el silenciador y la config, salvo force=true (timbre/autorizaciones).
+function playAlarm(force){ if(!force){ if(!soundOn) return; if(!(CONFIG.alerts&&CONFIG.alerts.on!==false)) return; } ensureAudio(); const n=Math.max(1,Math.round(alarmSecs()/0.6)); for(let i=0;i<n;i++) beep(i*0.6); }
+function buzz(){ try{ if(!navigator.vibrate) return; const dur=alarmSecs()*1000, pat=[]; let t=0; while(t<dur){ pat.push(300,200); t+=500; } navigator.vibrate(pat); }catch(e){} }
+// Sonido + vibración para un rol (cocina, pedidos, domicilios, meseros, stations). Si el rol está apagado en Admin, no hace nada.
+function alarmTo(role, force){ if(!alertEnabled(role)) return false; playAlarm(!!force); buzz(); return true; }
+// Desbloqueo del audio: los navegadores lo bloquean hasta el primer toque. Así la alarma suena aunque el pedido llegue más tarde.
+["pointerdown","touchstart","keydown"].forEach(ev=>document.addEventListener(ev,ensureAudio,{capture:true,passive:true}));
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) ensureAudio(); });
 let seenRings={}, ringsInit=false;
 let seenReadyMesero={};
 async function setRing(id){ if(!DB) return; try{ await DB.doc("orders/"+id).update({ring:Date.now()}); toast("Timbre enviado al mesero"); }catch(e){ toast("No se pudo enviar el timbre"); } }
@@ -1280,14 +1295,16 @@ function checkWaiterRings(){
   ringsInit=true;
 }
 function ringAlert(o){
+  if(!alertEnabled("meseros")) return;
   const el=$("#kitchenAlert");
   el.querySelector(".ka-code").textContent="🔔 ¡Pedido #"+(o.code||"")+" listo!";
   el.querySelector(".ka-info").textContent=(o.type==="mesa"?("Mesa "+(o.table||"")):(o.customer||"Cliente"))+" · recógelo en cocina";
   el.classList.add("show");
-  playAlarm(4, true); buzz(4);
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),4000);
+  alarmTo("meseros", true);
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),alarmSecs()*1000);
 }
-function kitchenAlert(o, extra){
+function kitchenAlert(o, extra, role){
+  if(!alertEnabled(role||"cocina")) return;
   const el=$("#kitchenAlert");
   el.querySelector(".ka-code").textContent="¡Nuevo pedido! #"+(o.code||"");
   let info=MODE_LABEL[o.type]||o.type;
@@ -1295,16 +1312,18 @@ function kitchenAlert(o, extra){
   if(extra>0) info+="  (+"+extra+" más)";
   el.querySelector(".ka-info").textContent=info;
   el.classList.add("show");
-  playAlarm(4); buzz(4);
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),4000);
+  alarmTo(role||"cocina");
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),alarmSecs()*1000);
 }
-function genAlert(code, info){
+// Aviso general (estaciones, domicilios, meseros). role = clave de Admin que lo habilita.
+function genAlert(code, info, role){
+  if(!alertEnabled(role||"meseros")) return;
   const el=$("#kitchenAlert"); if(!el) return;
   el.querySelector(".ka-code").textContent=code;
   el.querySelector(".ka-info").textContent=info||"";
   el.classList.add("show");
-  playAlarm(4); buzz(4);
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),4000);
+  alarmTo(role||"meseros");
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("show"),alarmSecs()*1000);
 }
 /* Alertas de llegada por módulo/empleado (estaciones, domicilios, meseros) */
 function moduleArrivalAlerts(prev){
@@ -1316,26 +1335,26 @@ function moduleArrivalAlerts(prev){
       const mk="st_"+s.id; if(!moduleOpen(mk)) return;
       const nowNew = o.st && o.st[s.id]==="nuevo";
       const hadStation = p && p.st && p.st[s.id]!=null;
-      if(nowNew && (!p || !hadStation)) genAlert("🍳 Nuevo en "+s.name+" · #"+(o.code||""), (MODE_LABEL[o.type]||o.type));
+      if(nowNew && (!p || !hadStation)) genAlert("🍳 Nuevo en "+s.name+" · #"+(o.code||""), (MODE_LABEL[o.type]||o.type), "stations");
     });
     // Domicilios: pedido que pasa a "listo" y me corresponde
-    if(moduleOpen("domicilios")){
+    if(moduleOpen("domicilios") && alertEnabled("domicilios")){
       const wasReady = p && p.status==="listo";
       const readyNow = o.type==="domicilio" && o.status==="listo";
       const mine = !currentDriver || (o.assignedTo && o.assignedTo.id===currentDriver.id);
       const assignedNow = currentDriver && o.assignedTo && o.assignedTo.id===currentDriver.id && (!p||!p.assignedTo||p.assignedTo.id!==currentDriver.id);
-      if(readyNow && mine && (!wasReady || assignedNow)) genAlert("🛵 Nuevo domicilio · #"+(o.code||""), esc(o.customer||"Cliente")+(o.hood?(" · "+esc(o.hood)):""));
+      if(readyNow && mine && (!wasReady || assignedNow)) genAlert("🛵 Nuevo domicilio · #"+(o.code||""), esc(o.customer||"Cliente")+(o.hood?(" · "+esc(o.hood)):""), "domicilios");
     }
     // Meseros: pedido que queda "listo" y me corresponde (lo tomé yo, está asignado a mí, o aún sin mesero).
     // Avisa en cuanto queda listo, sin depender de que ya esté asignado (la asignación es posterior).
-    if(moduleOpen("meseros") && currentWaiter){
+    if(moduleOpen("meseros") && currentWaiter && alertEnabled("meseros")){
       const myWid=widFor(currentWaiter);
       const assignedToMe = o.assignedWaiter && (o.assignedWaiter.id===myWid || o.assignedWaiter.name===currentWaiter);
       const takenByMe = o.source==="mesero" && o.waiter===currentWaiter;
       const unassigned = !(o.assignedWaiter && o.assignedWaiter.id);
       const readyNow = (o.type==="mesa"||o.type==="recoger") && o.status==="listo";
       if(readyNow && (assignedToMe || takenByMe || unassigned)){
-        if(!seenReadyMesero[o.id]){ seenReadyMesero[o.id]=1; genAlert("🧑‍🍳 Listo para entregar · #"+(o.code||""), (o.type==="mesa"?("Mesa "+(o.table||"")):esc(o.customer||"Cliente"))); }
+        if(!seenReadyMesero[o.id]){ seenReadyMesero[o.id]=1; genAlert("🧑‍🍳 Listo para entregar · #"+(o.code||""), (o.type==="mesa"?("Mesa "+(o.table||"")):esc(o.customer||"Cliente")), "meseros"); }
       } else if(!readyNow){ if(seenReadyMesero[o.id]) delete seenReadyMesero[o.id]; }
     }
   });
@@ -1440,7 +1459,11 @@ function startOrders(){
         try{ added = snap.docChanges().filter(c=>c.type==="added").map(c=>c.doc.data()).filter(o=>o&&o.status==="nuevo"); }catch(e){}
         const prevById={}; ORDERS.forEach(o=>prevById[o.id]=o);
         ORDERS = snap.docs.filter(d=>d.exists).map(d=>({id:d.id,...d.data()}));
-        if(ordersLoaded && added.length && (cocinaActive || moduleOpen("pedidos"))){ kitchenAlert(added[added.length-1], added.length-1); }
+        if(ordersLoaded && added.length){
+          // Pedido nuevo: suena para Cocina (si está abierta) y para Pedidos (si está abierta), según Admin
+          const krole = (cocinaActive && alertEnabled("cocina")) ? "cocina" : ((moduleOpen("pedidos") && alertEnabled("pedidos")) ? "pedidos" : null);
+          if(krole) kitchenAlert(added[added.length-1], added.length-1, krole);
+        }
         if(ordersLoaded){ try{ moduleArrivalAlerts(prevById); }catch(e){} }
         ordersLoaded=true;
         checkWaiterRings();
@@ -1807,7 +1830,7 @@ function authAlert(r){
   el.querySelector(".aa-sub").textContent="Autorización para eliminar pedido";
   el.dataset.req=r.id; el.dataset.order=r.orderId||"";
   el.classList.add("show");
-  playAlarm(4, true); buzz(4);
+  alarmTo("pedidos", true);
   try{ if(window.Notification && Notification.permission==="granted") new Notification("Autorización para eliminar", {body:"Pedido #"+(r.code||"")+(r.by?(" · "+r.by):"")}); }catch(e){}
 }
 function editAuthAlert(r){
@@ -1818,7 +1841,7 @@ function editAuthAlert(r){
   el.querySelector(".aa-sub").textContent="Autorización para EDITAR pedido entregado";
   el.dataset.req=r.id; el.dataset.order=r.orderId||"";
   el.classList.add("show");
-  playAlarm(4, true); buzz(4);
+  alarmTo("pedidos", true);
   try{ if(window.Notification && Notification.permission==="granted") new Notification("Autorización para editar", {body:"Pedido #"+(r.code||"")+(r.by?(" · "+r.by):"")}); }catch(e){}
 }
 function nextAuthOrHide(doneId){ const el=$("#authAlert"); const pend=REQS.find(r=>r.id!==doneId); const pendE=(EDITREQS||[]).find(r=>r.id!==doneId && (r.status||"pending")==="pending"); if(pend){ authAlert(pend); } else if(pendE){ editAuthAlert(pendE); } else if(el){ el.classList.remove("show"); } }
@@ -2422,6 +2445,16 @@ function renderAdmin(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px"><button type="button" class="ed-optbtn" id="aLayPrev">👁️ Previsualizar</button><button type="button" class="ed-optbtn" id="aLayReset">↺ Valores recomendados</button></div>
     <p class="note">Sugerencia: en celular 80–90% se ve cómodo; en computador 100%. Las categorías “al lado” lucen bien con tamaño 90–110%.</p>
+    <h3 style="font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;font-size:15px;margin-top:4px">🔔 Alertas de sonido</h3>
+    <p class="note">Elige qué módulos suenan cuando llega un pedido y cuánto dura el sonido. Los estaciones y empleados nuevos heredan estas alertas automáticamente.</p>
+    <div class="adm-grid">
+      <div class="field"><label>Alertas de sonido</label><select id="aAlOn"><option value="1"${(C.alerts||{}).on!==false?" selected":""}>Activadas</option><option value="0"${(C.alerts||{}).on===false?" selected":""}>Apagadas</option></select></div>
+      <div class="field"><label>Duración del sonido (segundos)</label><input id="aAlSecs" inputmode="numeric" value="${_clampN((C.alerts||{}).seconds,1,15,4)}" placeholder="4"></div>
+    </div>
+    <div style="display:grid;gap:6px;margin:6px 0">
+      ${[["cocina","🔥 Cocina · pedido nuevo"],["pedidos","🧾 Pantalla de pedidos · pedido nuevo y autorizaciones"],["domicilios","🛵 Domiciliarios · pedido listo para repartir"],["meseros","🧑‍🍳 Meseros · pedido listo para entregar y timbre"],["stations","🍳 Estaciones extra (todas las que crees)"]].map(([k,l])=>`<label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:14px"><input type="checkbox" class="alk" data-k="${k}" ${(C.alerts||{})[k]!==false?"checked":""} style="width:18px;height:18px">${l}</label>`).join("")}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="ed-optbtn" id="aAlTest">🔊 Probar sonido</button></div>
     <h3 style="font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;font-size:15px;margin-top:4px">📱 Códigos QR de mesas</h3>
     <p class="note">Genera un QR por mesa. Al escanearlo, el cliente abre el menú con su mesa ya seleccionada y pide desde el celular. Imprímelos y pégalos en cada mesa.</p>
     <div class="field"><label>Dirección (URL) de tu sitio publicado</label><input id="aQrBase" value="${esc(C.qrBase||"")}" placeholder="https://www.restoplazatoro.site"></div>
@@ -2442,11 +2475,14 @@ function renderAdmin(){
     C.content=Object.assign({},C.content,{brandName:$("#cBrand").value.trim(),brandTag:$("#cBrandTag").value.trim(),heroKicker:$("#cHeroKicker").value.trim(),heroTitle:$("#cHeroTitle").value.trim(),heroText:$("#cHeroText").value.trim(),heroChips:$("#cHeroChips").value.trim(),footTag:$("#cFootTag").value.trim(),footHow:$("#cFootHow").value.trim()});
     C.ticket={width:$("#aTicket").value,logoSize:Math.max(0,parseInt(String($("#aTkLogo").value).replace(/\D/g,""),10)||0)}; applyTicketStyle();
     C.layout={ zoomMobile:_clampN($("#aZoomM").value,55,130,85), zoomDesk:_clampN($("#aZoomD").value,55,130,100), catPosMobile:($("#aCatPosM").value==="side"?"side":"top"), catSizeMobile:_clampN($("#aCatSzM").value,60,170,100), catPosDesk:($("#aCatPosD").value==="top"?"top":"side"), catSizeDesk:_clampN($("#aCatSzD").value,60,170,100) }; applyLayout();
+    C.alerts=_alFromForm();
     applySettings(); if(moduleOpen("pantalla")) renderPantalla(); $("#admMsg").textContent="✓ Guardado"; toast("Información guardada");
   };
+  const at=$("#aAlTest"); if(at) at.onclick=()=>{ const prev=CONFIG.alerts; CONFIG.alerts=_alFromForm(); ensureAudio(); playAlarm(true); buzz(); CONFIG.alerts=prev; toast("Sonando "+_alFromForm().seconds+" s"); };
   const geo=$("#aStGeo"); if(geo) geo.onclick=()=>{ if(!navigator.geolocation){ toast("Geolocalización no disponible aquí"); return; } navigator.geolocation.getCurrentPosition(p=>{ $("#aStLat").value=p.coords.latitude.toFixed(6); $("#aStLng").value=p.coords.longitude.toFixed(6); toast("Ubicación capturada"); },()=>toast("No se pudo obtener la ubicación"),{timeout:8000}); };
   renderEmps(); renderStationsAdmin(); renderBancosAdmin(); renderZonasAdmin(); renderThemePicker(); renderLogoAdmin(); renderPantImgsAdmin();
   const qg=$("#aQrGen"); if(qg) qg.onclick=genTableQRs;
+  const _alFromForm=()=>{ const a={ on:$("#aAlOn").value!=="0", seconds:_clampN($("#aAlSecs").value,1,15,4) }; document.querySelectorAll(".alk").forEach(cb=>{ a[cb.dataset.k]=cb.checked; }); return a; };
   const _layFromForm=()=>({ zoomMobile:_clampN($("#aZoomM").value,55,130,85), zoomDesk:_clampN($("#aZoomD").value,55,130,100), catPosMobile:($("#aCatPosM").value==="side"?"side":"top"), catSizeMobile:_clampN($("#aCatSzM").value,60,170,100), catPosDesk:($("#aCatPosD").value==="top"?"top":"side"), catSizeDesk:_clampN($("#aCatSzD").value,60,170,100) });
   const _layLive=()=>{ const prev=CONFIG.layout; CONFIG.layout=_layFromForm(); applyLayout(); CONFIG.layout=prev; };
   ["aZoomM","aZoomD","aCatSzM","aCatSzD"].forEach(id=>{ const el=$("#"+id); if(el) el.addEventListener("input",_layLive); });
