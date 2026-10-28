@@ -61,12 +61,13 @@ a{color:var(--gold-hi)}
 .ann{margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));background:var(--gold);color:var(--on-gold);text-align:center;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:9px 14px;font-weight:500}
 .herobtns{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
 .herobtns .btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
-.trust{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 0 8px}
+.trust{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 0 8px}
 .trust>div{display:flex;align-items:center;gap:14px;padding:26px 22px;border-right:1px solid var(--line)}
 .trust>div:last-child{border-right:0}
 .trust b{display:block;font-weight:400;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
 .trust span{display:block;font-size:13px;color:var(--muted);margin-top:3px}
-@media(max-width:820px){.trust{grid-template-columns:repeat(2,minmax(0,1fr))}.trust>div{padding:18px 14px;border-bottom:1px solid var(--line);min-width:0;gap:10px}.trust>div>div{min-width:0;overflow-wrap:anywhere}.trust b{letter-spacing:.06em}}
+@media(max-width:820px){.trust{grid-template-columns:repeat(2,minmax(0,1fr))}.trust>div{padding:18px 14px;border-bottom:1px solid var(--line);min-width:0;gap:10px}.trust>div:nth-child(2n){border-right:0}.trust>div:nth-last-child(-n+2):nth-child(odd),.trust>div:last-child{border-bottom:0}.trust>div>div{min-width:0;overflow-wrap:break-word;hyphens:auto}.trust b{letter-spacing:.06em}}
+@media(max-width:480px){.trust>div{flex-direction:column;text-align:center;gap:8px;padding:18px 8px}.trust b{font-size:12px;letter-spacing:.05em}.trust span{font-size:12.5px}}
 .cattiles{padding-top:56px}
 .ctg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
 .ctile{position:relative;aspect-ratio:3/4;border:1px solid var(--line);background:var(--surface);padding:0;cursor:pointer;overflow:hidden;color:#efe6d2}
@@ -176,6 +177,7 @@ textarea.in{min-height:84px;resize:vertical}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);grid-column:1/-1}
 
 footer.ft{border-top:1px solid var(--line);padding:46px 0 56px;margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px));color:var(--muted);font-size:14px}
+footer.ft .lk{background:none;border:0;padding:8px 0;min-height:44px;color:var(--gold);font:inherit;font-size:13px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;text-align:left}footer.ft .lk:hover{color:var(--gold-hi)}
 footer.ft .credit{margin-top:28px;padding-top:18px;border-top:1px solid var(--line);text-align:center;font-size:12px;letter-spacing:.12em}
 footer.ft .credit a,footer.ft .credit .cred-in{display:inline-flex;align-items:center;gap:8px;color:var(--muted);text-decoration:none;min-height:32px}
 footer.ft .credit a:hover{color:var(--gold-hi)}footer.ft .credit b{font-weight:500;letter-spacing:.16em;color:var(--ink)}
@@ -1034,7 +1036,7 @@ function trustHtml(){
     ...(S.settings.warranty?[['M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z',tx('i4t','Garantía'),tx('i4s',S.settings.warranty)]]:[]),
     S.settings.creditEnabled?['M3 6h18v12H3zM3 10h18',tx('i4t',creditName()),tx('i4s','En cuotas mensuales')]:['M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z',tx('i4t','Compra segura'),tx('i4s','Tus datos protegidos')]];
   const it4=it.length>4&&!S.settings.warranty?it.slice(0,4):it;
-  return `<section class="trust" aria-label="Por qué elegirnos" style="grid-template-columns:repeat(${Math.min(it4.length,4)},minmax(0,1fr))">${it4.map(x=>`<div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.2" aria-hidden="true"><path d="${x[0]}"/></svg><div><b>${esc(x[1])}</b><span>${esc(x[2])}</span></div></div>`).join('')}</section>`;
+  return `<section class="trust" aria-label="Por qué elegirnos" style="--n:${Math.min(it4.length,4)}">${it4.map(x=>`<div><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.2" aria-hidden="true"><path d="${x[0]}"/></svg><div><b>${esc(x[1])}</b><span>${esc(x[2])}</span></div></div>`).join('')}</section>`;
 }
 function hdrHtml(){
   const u=me(),k=cust(),cnt=sum(S.cart,i=>i.qty);
