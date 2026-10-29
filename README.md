@@ -86,3 +86,10 @@ Todo se enciende y apaga desde el panel de administrador: **Puntos y referidos**
 - **Recoger en tienda:** Admin → Envíos → "Recoger en tienda". La clienta lo elige en el pago (sin costo de envío) y la dirección y el horario salen en la factura, el correo y el seguimiento.
 - **Avisos por WhatsApp:** Admin → Avisos por WhatsApp. El botón **Avisar** en Pedidos siempre funciona. Para envío **automático** necesitas la API oficial de WhatsApp Business (Meta): crea las plantillas sugeridas y guarda los secretos: `npx wrangler secret put WA_TOKEN` y `npx wrangler secret put WA_PHONE_ID`.
 - **Reportes:** Admin/Gerente → Reportes: ventas, costo, ganancia y margen. El costo de cada producto (Productos → Editar) solo lo ven administrador y gerente.
+
+## Hostinger (PHP + MySQL)
+
+La carpeta `hostinger/public_html/` contiene todo lo necesario: sube **su contenido** a `public_html` en Hostinger
+(incluido el archivo oculto `.htaccess`), crea la base MySQL desde hPanel y copia `api/config.sample.php` a `api/config.php`
+con los datos de tu base (nunca se sube a GitHub). Guía completa: `hostinger/public_html/INSTALAR_HOSTINGER.md`.
+Diagnóstico: `https://TU-DOMINIO/api/check.php`.

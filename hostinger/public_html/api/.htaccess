@@ -1,0 +1,7 @@
+# Solo se puede entrar a index.php y cron.php; el resto (config, datos, librerías) queda bloqueado
+<FilesMatch "\.(php|json|sample|md)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^(index|cron|check)\.php$">
+  Require all granted
+</FilesMatch>
