@@ -2,9 +2,7 @@
 /* GOLDEN TOUCH · API (PHP + MySQL). Mismo contrato que el servidor Node: api/ping, sync, ops, login... */
 declare(strict_types=1);
 ini_set('display_errors', '0'); error_reporting(E_ALL);
-require __DIR__ . '/core.php';
-require __DIR__ . '/logic.php';
-require __DIR__ . '/mail.php';
+require_once __DIR__ . '/_bootstrap.php';
 
 const COLS = ['categories', 'products', 'coupons', 'zones', 'users', 'customers', 'orders', 'creditReqs', 'notifs', 'cashClosings', 'reviews', 'carts', 'costs'];
 
@@ -321,7 +319,7 @@ function route(): void {
     catch (Throwable $e) { error_log('cfg save ' . $e->getMessage()); send(500, ['ok' => false, 'error' => 'Error interno']); }
     send(200, ['ok' => true]);
   }
-  if ($p === '/api/ping') send(200, ['ok' => true, 'app' => 'golden-touch', 'v' => 1, 'rt' => 'poll']);
+  if ($p === '/api/ping' || $p === '/api/ping.php') send(200, ['ok' => true, 'app' => 'golden-touch', 'v' => 1, 'rt' => 'poll']);
   if ($p === '/api/me' && $m === 'GET') send(200, ['me' => meOf($a)]);
   if ($p === '/api/sync' && $m === 'GET') { $s = syncOut($a, max(0, (int)($_GET['since'] ?? 0))); $s['me'] = meOf($a); send(200, $s); }
   if ($p === '/api/events') send(404, ['error' => 'No disponible']);
