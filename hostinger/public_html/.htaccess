@@ -8,7 +8,7 @@ RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # Todas las llamadas /api/... van al servidor PHP
-RewriteRule ^api/(?!index\.php|cron\.php|check\.php|ping\.php|ops\.php|sync\.php)(.*)$ api/index.php [L,QSA]
+RewriteRule ^api/(?!index\.php|cron\.php|check\.php|ping\.php|ops\.php|sync\.php|api\.php)(.*)$ api/index.php [L,QSA]
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"

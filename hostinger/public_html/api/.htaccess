@@ -2,6 +2,6 @@
 <FilesMatch "\.(php|json|sample|md)$">
   Require all denied
 </FilesMatch>
-<FilesMatch "^(index|cron|check|ping|ops|sync)\.php$">
+<FilesMatch "^(index|cron|check|ping|ops|sync|api)\.php$">
   Require all granted
 </FilesMatch>
